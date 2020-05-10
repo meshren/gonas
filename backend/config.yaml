@@ -1,0 +1,18 @@
+backend:
+  golang:
+    port: 8081
+  mysql:
+    host: 127.0.0.1
+    port: 3307
+    user: gonas
+    password: Arstdm1N3619
+    database: gonas
+  nginx:
+    port: 80
+  redis:
+    host: 127.0.0.1
+    port: 6379
+  manager-salt: 9sjfjkwkalkjzkjokalkfji
+  user-salt: kwjkoiasjkf1a9sfj2axxc
+  manager-key: DIS**#KKKDJJSKDI
+  client-key: DIS**#KKKDJJSKDA

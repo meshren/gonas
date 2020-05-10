@@ -1,0 +1,45 @@
+version: '3'
+services:
+  mysql:
+    image: mysql:5.7
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/conf.d:/etc/mysql/mysql.conf.d
+    ports:
+      - 3307:3306
+    environment:
+      - MYSQL_USER=gonas
+      - MYSQL_PASSWORD=Arstdm1N3619
+      - MYSQL_DATABASE=gonas
+      - MYSQL_ROOT_PASSWORD=ajksiwjfkl(8&2718*2
+    container_name: gonas_mysql
+  redis:
+    image: redis:alpine
+    ports:
+      - 6380:6379
+    volumes:
+      - ./redis/data:/data
+    container_name: gonas_redis
+  nginx:
+    image: nginx:1.12.2
+    depends_on:
+      - "golang"
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ../backend/static:/var/www/html
+    container_name: gonas_nginx
+  golang:
+    build: ./golang
+    ports:
+      - 8001:8081
+    links:
+      - "mysql"
+      - "redis"
+    volumes:
+      - ./go:/go
+      - ../backend:/go/src/app
+    container_name: gonas_golang
+    tty: true
