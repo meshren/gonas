@@ -56,7 +56,6 @@ const actions = {
           introduction: DataRaw.Introduction
         }
         // const { data } = response
-console.log(DataRaw, data)
         if (!data) {
           reject('Verification failed, please Login again.')
         }

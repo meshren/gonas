@@ -15,52 +15,27 @@ type userInfo struct {
 }
 
 func Login(c *gin.Context) {
-	// 1. 验证表单
-	var manager models.Manager
-	err := c.BindJSON(&manager)
+	var user models.User
+	err := c.BindJSON(&user)
+	token, err := user.Login()
 	if err != nil {
-		utils.ErrDetail(err)
-		ClientJson(c, http.StatusOK, "", CodeInvalidParam, "参数不正确！")
+		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "校验失败，请重试！")
 		return
 	}
-	if len(manager.Username) < 6 || len(manager.Password) < 6 {
-		ClientJson(c, http.StatusOK, "", CodeInvalidParam, "用户名或密码无效！")
+	if token == "" {
+		utils.ClientJson(c, http.StatusBadRequest, token, utils.CodeProcessFailed, "用户名密码不匹配！")
 		return
 	}
-	// 2. 验证密码
-	if ok, _ := manager.CheckPassword(); !ok {
-		ClientJson(c, http.StatusOK, "", CodeInvalidParam, "用户名密码不匹配！")
-		return
-	}
-	// 3. 生成token
-	token, err := models.GenToken(&manager)
-	if err != nil {
-		utils.ErrDetail(err)
-		ClientJson(c, http.StatusOK, "", CodeInvalidParam, "生成用户token出错！")
-		return
-	}
-	tokenEncrypt, err := models.EncryptToken(&token)
-	if err != nil {
-		utils.ErrDetail(err)
-		ClientJson(c, http.StatusOK, "", CodeInvalidParam, "加密用户token出错！")
-		return
-	}
-	ClientJson(c, http.StatusOK, tokenEncrypt, CodeSuccess, "success")
+	utils.ClientJson(c, http.StatusOK, token, utils.CodeSuccess, "success")
+	return
 }
 
 func Logout(c *gin.Context)  {
-	ClientJson(c, http.StatusOK, "", CodeSuccess, "success")
+	utils.ClientJson(c, http.StatusOK, "", utils.CodeSuccess, "success")
 }
 
-func AllFiles(c *gin.Context) {
-	var file models.File
-	files, err := file.GetAll("created_at DESC", 10, 0)
-	if err != nil {
-		utils.ErrDetail(err)
-		ClientJson(c, http.StatusBadRequest, files, CodeProcessFailed, "查询失败！")
-	}
-	ClientJson(c, http.StatusOK, files, CodeSuccess, "success")
-}
+
+
 
 func AllUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user1": "user1"})

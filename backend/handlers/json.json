@@ -1,0 +1,19 @@
+{
+  "code": 20000,
+  "data": [
+    {
+      "ID": 1,
+      "CreatedAt": "2020-05-08T08:58:46+07:00",
+      "UpdatedAt": "2020-05-08T08:58:46+07:00",
+      "DeletedAt": null,
+      "display": "文件1",
+      "hash": "xxx",
+      "type": 0,
+      "size": 10,
+      "original_name": "",
+      "device_id": 0,
+      "Users": null
+    }
+  ],
+  "message": "success"
+}

@@ -1,16 +1,142 @@
 package models
 
 import (
-	"github.com/jinzhu/gorm"
+	"encoding/json"
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
+	"gonas/utils"
+	"log"
 	"time"
 )
 
-type User struct {
-	gorm.Model
-	Username string
-	Password string
-	DeviceID uint
-	LastLoginIp uint32
-	LastLoginAt time.Time
-	LoginCount uint64
+type UserToken struct {
+	ID        uint
+	Username  string
+	ExpiredAt time.Time
 }
+
+type User struct {
+	BaseModel
+	Username    string    `json:"username"`
+	Password    string    `json:"password"`
+	DeviceID    uint      `json:"device_id"`
+	LastLoginIp uint32    `json:"last_login_ip"`
+	LastLoginAt time.Time `json:"last_login_at"`
+	LoginCount  uint64    `json:"login_count"`
+	Files       []File    `gorm:"many2many:user_files"`
+	Directories []Directory
+}
+
+func (u *User) GenToken() (string, error) {
+	userToken, err := u.GenUserToken()
+	if err != nil {
+		return "", err
+	}
+	return EncryptedToken(&userToken)
+}
+
+func FindUserByID(id uint) (user User, err error)  {
+	db, err := connection()
+	if err != nil{
+		return
+	}
+	defer db.Close()
+	db.Where("id=?", id).First(&user)
+	return
+}
+
+func (u *User) UserFiles() ([]File, error) {
+	db, err := connection()
+	var files []File
+	if err != nil{
+		return files, err
+	}
+	defer db.Close()
+	db.Model(u).Related(files, "Files")
+	return files, nil
+}
+
+func (u *User) Login() (token string, err error) {
+	db, err := connection()
+	if err != nil {
+		return "", err
+	}
+	defer db.Close()
+	saltPwd := u.Password + viper.GetString("backend.manager-salt")
+	passMd5 := utils.Md5Encrypt(saltPwd)
+	var user User
+	db.Where("username=? AND password=?", u.Username, passMd5).First(&user)
+	log.Println("userID: ", user.ID)
+	if user.ID == 0 {
+		return "", nil
+	}
+	userToken, err := user.GenUserToken()
+	log.Println("user token: ", userToken)
+	if err != nil {
+		return
+	}
+	return EncryptedToken(&userToken)
+}
+
+func (u *User) GenUserToken() (token UserToken, err error) {
+	expiredAt, err := utils.AddTime(time.Now(), "+24h")
+	if err != nil {
+		utils.ErrDetail(err)
+		return
+	}
+	token = UserToken{
+		ID:        u.ID,
+		Username:  u.Username,
+		ExpiredAt: expiredAt,
+	}
+	return
+}
+
+func EncryptedToken(userToken *UserToken) (token string, err error) {
+	tokenB, err := json.Marshal(userToken)
+	if err != nil {
+		return
+	}
+	tokenS := string(tokenB)
+	key := viper.GetString("backend.manager-key")
+	token, err = utils.EnPwdCode([]byte(tokenS), []byte(key))
+	return
+}
+
+func (u *User) Create() error {
+	db, err := connection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	db.Create(u)
+	return nil
+}
+
+type UserI interface {
+	Login() (string, error)
+	Create() error
+	GenToken() (string, error)
+	UserFiles() ([]File, error)
+}
+
+// 解密用户token
+func DecryptToken(t string) (token UserToken, err error) {
+	key := viper.GetString("backend.manager-key")
+	tokenB, err := utils.DePwdCode(t, []byte(key))
+	err = json.Unmarshal(tokenB, &token)
+	return
+}
+
+func CheckAuth(c *gin.Context) (userID uint, err error) {
+	token, err := c.Cookie("Admin-Token")
+	if err != nil {
+		return 0, err
+	}
+	decryptToken, err := DecryptToken(token)
+	if err != nil {
+		return
+	}
+	return decryptToken.ID, nil
+}
+

@@ -6,6 +6,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/spf13/viper"
 	"gonas/utils"
+	"time"
 )
 
 // mysql 连接
@@ -21,5 +22,14 @@ func connection() (db *gorm.DB, err error) {
 		utils.ErrDetail(err)
 		return
 	}
+	db.DB().SetMaxIdleConns(10)
+	db.DB().SetMaxOpenConns(100)
 	return
+}
+
+type BaseModel struct {
+	ID        uint       `gorm:"primary_key",json:"id"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `sql:"index",json:"deleted_at"`
 }

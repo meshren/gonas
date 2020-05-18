@@ -1,22 +1,42 @@
 package models
 
 import (
-	"github.com/jinzhu/gorm"
+	"errors"
 	"gonas/utils"
+	"log"
 )
 
-// file type 0 unknown 1 document(txt,doc,pdf,xlsx...) 2 image 3 video 4 audio 5 binary
+// file type 1. folder 2. document(txt,doc,pdf,xlsx...) 3. image 4. video 5. audio 6. binary
+const (
+	FileTypeText = iota
+)
 
 type File struct {
-	gorm.Model
-	Display      string
-	Hash         string
-	Type         int8
-	Size         int64
-	DirectoryID  int
-	Directory    string
-	OriginalName string
-	DeviceID     uint
+	BaseModel
+	Display      string     `json:"display"`
+	Hash         string     `json:"hash"`
+	Type         int8       `json:"type"`
+	Size         int64      `json:"size"`
+	OriginalName string     `json:"original_name"`
+	DeviceID     uint       `json:"device_id"`
+	Users        []*User    `gorm:"many2many:user_files"`
+}
+
+func (f *File) Create() error {
+	db, err := connection()
+	defer db.Close()
+	if err != nil {
+		return err
+	}
+	log.Println("file: ", f)
+	ok := db.Create(f)
+	log.Println("ok: ", ok)
+	return nil
+}
+
+type FileI interface {
+	GetAll() (files []File, err error)
+	Create() error
 }
 
 func (f *File) GetAll(order string, limit uint, offset uint) (files []File, err error) {
@@ -26,15 +46,19 @@ func (f *File) GetAll(order string, limit uint, offset uint) (files []File, err 
 		utils.ErrDetail(err)
 		return
 	}
-	if order != "" {
-		db.Where(f).Order(order)
-	}
-	if limit > 0 {
-		db.Limit(limit)
-	}
-	if offset >= 0 {
-		db.Offset(offset)
-	}
-	db.Find(&files)
+	db.Debug().Where(f).Order(order).Limit(limit).Offset(offset).Find(&files)
 	return
+}
+
+func (f *File) CreateFolder() error {
+	if f.Display == "" {
+		return errors.New("目录名称不能为空！")
+	}
+	db, err := connection()
+	defer db.Close()
+	if err != nil {
+		return err
+	}
+	db.Create(f)
+	return nil
 }

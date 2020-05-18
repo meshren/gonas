@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type LogUser struct {
 	ID         uint
@@ -12,6 +14,7 @@ type LogUser struct {
 }
 
 func (l *LogUser) Create() (bool, error) {
+	return true, nil
 }
 
 const (

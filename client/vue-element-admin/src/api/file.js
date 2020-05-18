@@ -24,9 +24,9 @@ export function uploadFile(data) {
   })
 }
 
-export function updateArticle(data) {
+export function createFolder(data) {
   return request({
-    url: '/vue-element-admin/article/update',
+    url: '/folders',
     method: 'post',
     data
   })
