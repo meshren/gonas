@@ -1,4 +1,4 @@
 .idea/
 ./backend/.idea
 ./client/vue-element-admin/.idea
-./backend/storage/*
+./backend/storage/
