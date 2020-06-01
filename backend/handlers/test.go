@@ -8,13 +8,9 @@ import (
 	"net/http"
 )
 
-func TestModel(c *gin.Context)  {
-	user, err := models.FindUserByID(1)
-	if err != nil {
-		utils.ErrDetail(err)
-	}
-	log.Println(user)
-	files, err := user.UserFiles()
-	log.Println(files)
-	c.JSON(http.StatusOK, gin.H{"message": "ok"})
+func TestModel(c *gin.Context) {
+	user, _ := models.FindUserByID(1)
+	files, _ := models.FilesByUser(&user)
+	log.Println("files: ", files)
+	utils.ClientJson(c, http.StatusOK, files, utils.CodeSuccess, "ok")
 }

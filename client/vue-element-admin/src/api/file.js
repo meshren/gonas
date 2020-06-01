@@ -16,6 +16,14 @@ export function fetchFile(id) {
   })
 }
 
+export function fetchDirectory(parent_id) {
+  return request({
+    url: '/directories',
+    method: 'get',
+    params: { parent_id }
+  })
+}
+
 export function uploadFile(data) {
   return request({
     url: '/files',
@@ -24,10 +32,3 @@ export function uploadFile(data) {
   })
 }
 
-export function createFolder(data) {
-  return request({
-    url: '/folders',
-    method: 'post',
-    data
-  })
-}

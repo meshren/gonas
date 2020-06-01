@@ -19,6 +19,7 @@ func backend(router *gin.Engine) {
 		backend.GET("/files", handlers.AllFiles)
 		backend.POST("/files", handlers.UploadFiles) // 上传文件
 		backend.GET("/users", handlers.AllUsers)
-		backend.POST("/folders", handlers.CreateFolder)
+		backend.POST("/directories", handlers.CreateDirectories)
+		backend.GET("/directories", handlers.CreateDirectories)
 	}
 }

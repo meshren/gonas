@@ -17,14 +17,15 @@ type UserToken struct {
 
 type User struct {
 	BaseModel
-	Username    string    `json:"username"`
-	Password    string    `json:"password"`
-	DeviceID    uint      `json:"device_id"`
-	LastLoginIp uint32    `json:"last_login_ip"`
-	LastLoginAt time.Time `json:"last_login_at"`
-	LoginCount  uint64    `json:"login_count"`
-	Files       []File    `gorm:"many2many:user_files"`
-	Directories []Directory
+	Username    string      `json:"username"`
+	Password    string      `json:"password"`
+	DeviceID    uint        `json:"device_id"`
+	LastLoginIp uint32      `json:"last_login_ip"`
+	LastLoginAt time.Time   `json:"last_login_at"`
+	LoginCount  uint64      `json:"login_count"`
+	Files       []File      `gorm:"many2many:user_files",json:"files"`
+	Directories []Directory `json:"directories"`
+	DirectoryID uint
 }
 
 func (u *User) GenToken() (string, error) {
@@ -35,25 +36,43 @@ func (u *User) GenToken() (string, error) {
 	return EncryptedToken(&userToken)
 }
 
-func FindUserByID(id uint) (user User, err error)  {
+func FindUserByID(id uint) (user User, err error) {
 	db, err := connection()
-	if err != nil{
+	log.Println("db1: ", db)
+	log.Println("err: ", err)
+	if err != nil {
+		utils.ErrDetail(err)
 		return
 	}
 	defer db.Close()
+	log.Println("db2: ", db)
 	db.Where("id=?", id).First(&user)
 	return
 }
 
-func (u *User) UserFiles() ([]File, error) {
+func (u *User) UserFiles() (files []File, err error) {
+	return FilesByUser(u)
+}
+
+func FilesDirectoryUserID(userID uint, directoryID uint) (files []File, err error) {
 	db, err := connection()
-	var files []File
-	if err != nil{
-		return files, err
+	if err != nil {
+		return
 	}
-	defer db.Close()
-	db.Model(u).Related(files, "Files")
-	return files, nil
+	var user User
+	user.ID = userID
+	user.DirectoryID = directoryID
+	db.Debug().Model(&user).Where("user_files.directory_id=?", directoryID).Related(&files, "Files")
+	return
+}
+
+func FilesByUser(user *User) (files []File, err error) {
+	db, err := connection()
+	if err != nil {
+		return
+	}
+	db.Model(&user).Related(&files, "Files")
+	return
 }
 
 func (u *User) Login() (token string, err error) {
@@ -66,12 +85,10 @@ func (u *User) Login() (token string, err error) {
 	passMd5 := utils.Md5Encrypt(saltPwd)
 	var user User
 	db.Where("username=? AND password=?", u.Username, passMd5).First(&user)
-	log.Println("userID: ", user.ID)
 	if user.ID == 0 {
 		return "", nil
 	}
 	userToken, err := user.GenUserToken()
-	log.Println("user token: ", userToken)
 	if err != nil {
 		return
 	}
@@ -139,4 +156,3 @@ func CheckAuth(c *gin.Context) (userID uint, err error) {
 	}
 	return decryptToken.ID, nil
 }
-

@@ -19,7 +19,7 @@ type File struct {
 	Size         int64      `json:"size"`
 	OriginalName string     `json:"original_name"`
 	DeviceID     uint       `json:"device_id"`
-	Users        []*User    `gorm:"many2many:user_files"`
+	Users        []*User    `gorm:"many2many:user_files",json:"users"`
 }
 
 func (f *File) Create() error {

@@ -69,20 +69,19 @@ func createFile(bytes []byte) (file *os.File, err error) {
 }
 
 func AllFiles(c *gin.Context) {
-	ID, err := models.CheckAuth(c)
-	log.Println("userid: ", ID)
-	directoryIDString := c.Query("directory_id")
-	directoryID, err := strconv.Atoi(directoryIDString)
-	if err != nil || directoryID == 0{
-		directoryID = 1
-	}
-	var file models.File
-	files, err := file.GetAll("created_at DESC", 1, 0)
+	userID, err := models.CheckAuth(c)
 	if err != nil {
 		utils.ErrDetail(err)
-		utils.ClientJson(c, http.StatusBadRequest, files, utils.CodeProcessFailed, "查询失败！")
-		return
+		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "用户登录超时")
 	}
+	directoryIDString := c.Query("directory_id")
+	directoryID, err := strconv.Atoi(directoryIDString)
+	if err != nil{
+		utils.ErrDetail(err)
+		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "用户目录不存在！")
+	}
+	files, err := models.FilesDirectoryUserID(userID, uint(directoryID))
+
 	utils.ClientJson(c, http.StatusOK, files, utils.CodeSuccess, "success")
 }
 

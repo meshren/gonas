@@ -10,4 +10,5 @@ const (
 
 func ClientJson(c *gin.Context, httpStatus int, data interface{}, Code int, message string) {
 	c.JSON(httpStatus, gin.H{"code": Code, "data": data, "message": message})
+	c.Abort()
 }
