@@ -1,18 +1,44 @@
 <template>
   <div class="app-container">
     <div class="filter-container">
-      <el-input v-model="listQuery.file_name" :placeholder="$t('table.title')" style="width: 200px;" class="filter-item" @keyup.enter.native="handleFilter" />
+      <el-input
+        v-model="listQuery.file_name"
+        :placeholder="$t('table.title')"
+        style="width: 200px;"
+        class="filter-item"
+        @keyup.enter.native="handleFilter"
+      />
       <el-button v-waves class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
         {{ $t('table.search') }}
       </el-button>
-      <el-button class="filter-item" style="margin-left: 10px;" type="primary" icon="el-icon-plus" @click="handleCreate">
-        新建
-      </el-button>
-      <el-button v-waves :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">
-        {{ $t('table.export') }}
-      </el-button>
+      <el-dropdown class="filter-item" style="margin-left: 10px;" type="primary" @command="handleCommand">
+        <el-button type="primary">
+          新建
+          <i class="el-icon-arrow-down el-icon--right" />
+        </el-button>
+        <el-dropdown-menu slot="dropdown">
+          <el-upload
+            class="upload-demo"
+            action="/backend/files"
+            :on-preview="handlePreview"
+            :on-remove="handleRemove"
+            multiple
+            :data="{directory_id: currentDirectoryID}"
+            :on-success="handleSuccess"
+            :limit="1"
+          >
+            <el-dropdown-item command="file">文件</el-dropdown-item>
+          </el-upload>
+          <el-dropdown-item command="folder">文件夹</el-dropdown-item>
+        </el-dropdown-menu>
+      </el-dropdown>
     </div>
-
+    <el-breadcrumb separator-class="el-icon-arrow-right">
+      <el-breadcrumb-item :to="{ path: '/file/index' }">我的网盘</el-breadcrumb-item>
+      <el-breadcrumb-item>活动管理</el-breadcrumb-item>
+      <el-breadcrumb-item>活动列表</el-breadcrumb-item>
+      <el-breadcrumb-item>活动详情</el-breadcrumb-item>
+    </el-breadcrumb>
     <el-table
       :key="tableKey"
       v-loading="listLoading"
@@ -23,13 +49,9 @@
       style="width: 100%;"
       :cell-style="{cursor: 'pointer'}"
       @sort-change="sortChange"
+      @cell-click="handleClick"
     >
-      <el-table-column label="ID" prop="id" sortable="custom" align="center" width="80" :class-name="getSortClass('id')">
-        <template slot-scope="{row}">
-          <span>{{ row.ID }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="名称" prop="id" sortable="custom" align="left" :class-name="getSortClass('id')">
+      <el-table-column label="名称" prop="display" sortable="custom" align="left" :class-name="getSortClass('id')">
         <template slot-scope="{row}">
           <span>
             <svg-icon :icon-class="handleIcon(row.type)" />
@@ -37,7 +59,14 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="大小" prop="id" sortable="custom" align="center" width="80" :class-name="getSortClass('id')">
+      <el-table-column
+        label="大小"
+        prop="id"
+        sortable="custom"
+        align="center"
+        width="80"
+        :class-name="getSortClass('id')"
+      >
         <template slot-scope="{row}">
           <span>{{ row.size }}</span>
         </template>
@@ -58,41 +87,20 @@
         </template>
       </el-table-column>
     </el-table>
-
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
-
-    <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible">
-      <el-form ref="dataForm" :rules="rules" :model="temp" label-position="left" label-width="70px" style="width: 400px; margin-left:50px;">
-        <el-form-item label="名称">
-          <el-input v-model="folder.display" />
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogFormVisible = false">
-          {{ $t('table.cancel') }}
-        </el-button>
-        <el-button type="primary" @click="dialogStatus==='create'?createData():updateData()">
-          {{ $t('table.confirm') }}
-        </el-button>
-      </div>
-    </el-dialog>
-
-    <el-dialog :visible.sync="dialogPvVisible" title="Reading statistics">
-      <el-table :data="pvData" border fit highlight-current-row style="width: 100%">
-        <el-table-column prop="key" label="Channel" />
-        <el-table-column prop="pv" label="Pv" />
-      </el-table>
-      <span slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="dialogPvVisible = false">{{ $t('table.confirm') }}</el-button>
-      </span>
-    </el-dialog>
+    <pagination
+      v-show="total>0"
+      :total="total"
+      :page.sync="listQuery.page"
+      :limit.sync="listQuery.limit"
+      @pagination="getList"
+    />
   </div>
 </template>
 
 <script>
 import { fetchList, fetchPv, createFolder, updateArticle } from '@/api/file'
 import waves from '@/directive/waves' // waves directive
-import { parseTime } from '@/utils'
+// import { parseTime } from '@/utils'
 import Pagination from '@/components/Pagination' // secondary package based on el-pagination
 
 export default {
@@ -113,9 +121,10 @@ export default {
   },
   data() {
     return {
-      currentFolder: '/',
+      currentDirectoryID: 0,
+      currentDirectoryName: 0,
       tableKey: 0,
-      list: null,
+      list: [],
       total: 0,
       listLoading: true,
       listQuery: {
@@ -128,9 +137,6 @@ export default {
         display: '',
         parent: ''
       },
-      sortOptions: [{ label: 'ID Ascending', key: '+id' }, { label: 'ID Descending', key: '-id' }],
-      statusOptions: ['published', 'draft', 'deleted'],
-      showReviewer: false,
       temp: {
         id: undefined,
         importance: 1,
@@ -139,29 +145,51 @@ export default {
         title: '',
         type: '',
         status: 'published'
-      },
-      dialogFormVisible: false,
-      dialogStatus: '',
-      textMap: {
-        update: 'Edit',
-        create: 'Create'
-      },
-      dialogPvVisible: false,
-      pvData: [],
-      rules: {
-        type: [{ required: true, message: 'type is required', trigger: 'change' }],
-        timestamp: [{ type: 'date', required: true, message: 'timestamp is required', trigger: 'change' }],
-        title: [{ required: true, message: 'title is required', trigger: 'blur' }]
-      },
-      downloadLoading: false
+      }
     }
   },
   created() {
     this.getList()
   },
   methods: {
+    handleSuccess() {
+      this.$message('上传成功！')
+    },
+    handleRemove(file, fileList) {
+      console.log(file, fileList)
+    },
+    handlePreview(file) {
+      console.log(file)
+    },
+    handleClick(row, column) {
+      if (column.property === 'display' && row.type === 1) {
+        this.listQuery.directory_id = row.id
+        this.currentDirectoryID = row.id
+        this.getList()
+      }
+    },
+    createFolder() {
+      this.$prompt('请输入文件夹名', '', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        // inputPattern: /[\w!#$%&'*+/=?^_`{|}~-]+(?:\.[\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\w](?:[\w-]*[\w])?\.)+[\w](?:[\w-]*[\w])?/,
+        inputErrorMessage: '文件夹名称不合法！'
+      }).then(({ value }) => {
+        createFolder({ display: value, parent_id: this.currentDirectoryID })
+          .then((response) => {
+            console.log(response)
+            this.$message({
+              type: 'success',
+              message: '创建文件夹成功: ' + value
+            })
+          })
+          .catch(errors => console.log(errors))
+      })
+        .catch(errors => console.log(errors))
+    },
     handleIcon(type) {
       switch (type) {
+        case 0: return 'document'
         case 1: return 'folder'
         case 2: return 'document'
         default: return 'folder'
@@ -170,8 +198,9 @@ export default {
     getList() {
       this.listLoading = true
       fetchList(this.listQuery).then(response => {
-        this.list = response.data
-        this.total = response.data.length
+        this.parseData(response.data)
+        // this.list = response.data
+        // this.total = response.data.length
 
         // Just to simulate the time of the request
         setTimeout(() => {
@@ -179,16 +208,21 @@ export default {
         }, 1.5 * 1000)
       })
     },
+    parseData(data) {
+      this.list = []
+      const { files, directories } = data
+      files.map(file => {
+        const { id, display, size, created_at, type } = file
+        this.list.push({ id, display, size, created_at, type })
+      })
+      directories.map(directory => {
+        const { id, display, size, created_at } = directory
+        this.list.push({ id, display, size, created_at, type: 1 })
+      })
+    },
     handleFilter() {
       this.listQuery.page = 1
       this.getList()
-    },
-    handleModifyStatus(row, status) {
-      this.$message({
-        message: '操作成功',
-        type: 'success'
-      })
-      row.status = status
     },
     sortChange(data) {
       const { prop, order } = data
@@ -204,39 +238,24 @@ export default {
       }
       this.handleFilter()
     },
-    handleCreate() {
-      this.dialogStatus = 'create'
-      this.dialogFormVisible = true
+    handleCommand(command) {
+      console.log(command)
+      switch (command) {
+        case 'folder':
+          console.log('case folder')
+          this.createFolder()
+          break
+        case 'file':
+          console.log('case file')
+          this.createFile()
+      }
     },
-    createData() {
-      createFolder(this.folder)
-    },
+    createFile() {},
     handleUpdate(row) {
       this.temp = Object.assign({}, row) // copy obj
       this.temp.timestamp = new Date(this.temp.timestamp)
-      this.dialogStatus = 'update'
-      this.dialogFormVisible = true
       this.$nextTick(() => {
         this.$refs['dataForm'].clearValidate()
-      })
-    },
-    updateData() {
-      this.$refs['dataForm'].validate((valid) => {
-        if (valid) {
-          const tempData = Object.assign({}, this.temp)
-          tempData.timestamp = +new Date(tempData.timestamp) // change Thu Nov 30 2017 16:41:05 GMT+0800 (CST) to 1512031311464
-          updateArticle(tempData).then(() => {
-            const index = this.list.findIndex(v => v.id === this.temp.id)
-            this.list.splice(index, 1, this.temp)
-            this.dialogFormVisible = false
-            this.$notify({
-              title: '成功',
-              message: '更新成功',
-              type: 'success',
-              duration: 2000
-            })
-          })
-        }
       })
     },
     handleDelete(row, index) {
@@ -247,35 +266,6 @@ export default {
         duration: 2000
       })
       this.list.splice(index, 1)
-    },
-    handleFetchPv(pv) {
-      fetchPv(pv).then(response => {
-        this.pvData = response.data.pvData
-        this.dialogPvVisible = true
-      })
-    },
-    handleDownload() {
-      this.downloadLoading = true
-        import('@/vendor/Export2Excel').then(excel => {
-          const tHeader = ['timestamp', 'title', 'type', 'importance', 'status']
-          const filterVal = ['timestamp', 'title', 'type', 'importance', 'status']
-          const data = this.formatJson(filterVal)
-          excel.export_json_to_excel({
-            header: tHeader,
-            data,
-            filename: 'table-list'
-          })
-          this.downloadLoading = false
-        })
-    },
-    formatJson(filterVal) {
-      return this.list.map(v => filterVal.map(j => {
-        if (j === 'timestamp') {
-          return parseTime(v[j])
-        } else {
-          return v[j]
-        }
-      }))
     },
     getSortClass: function(key) {
       const sort = this.listQuery.sort

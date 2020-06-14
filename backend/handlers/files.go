@@ -16,28 +16,33 @@ import (
 	"strconv"
 )
 
-func UploadFiles(c *gin.Context) {
+func UploadFiles(c *gin.Context) (err error){
 	file, header, err := c.Request.FormFile("file")
+	directoryIDS := c.Request.Form.Get("directory_id")
+	directoryID, err := strconv.Atoi(directoryIDS)
 	if err != nil {
-		utils.ErrDetail(err)
+		directoryID = 0
+	}
+	if err != nil {
 		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "读取上传文件失败，请重试！")
+		return
 	}
 	hash, err := fileMd5(file)
 	if err != nil {
-		utils.ErrDetail(err)
 		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "获取上传文件哈希值失败，请重试！")
+		return
 	}
 	fileName := header.Filename
 	log.Printf("file name: %s, hash: %s\n", fileName, hash)
 	pwd, err := os.Getwd()
 	if err != nil {
-		utils.ErrDetail(err)
 		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "获取上传文件目录失败，请重试！")
+		return
 	}
 	dst := path.Join(pwd, "/storage", hash)
 	if err = c.SaveUploadedFile(header, dst); err != nil {
-		utils.ErrDetail(err)
 		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "保存文件失败，请重试！")
+		return
 	}
 	// todo 获取文件类型
 	fileModel := &models.File{
@@ -48,11 +53,20 @@ func UploadFiles(c *gin.Context) {
 		OriginalName: fileName,
 		DeviceID:     0,
 	}
-	if err = fileModel.Create(); err != nil {
+	var fileID uint
+	if fileID, err = fileModel.Create(); err != nil {
 		utils.ErrDetail(err)
 		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "新增文件记录失败，请重试！")
 	}
+	var userFile models.UserFiles
+	userFile.UserID, _ = models.CheckAuth(c)
+	userFile.FileID = fileID
+	userFile.DirectoryID = uint(directoryID)
+	if _, err := userFile.Create(); err != nil {
+		return err
+	}
 	utils.ClientJson(c, http.StatusOK, "", utils.CodeSuccess, "上传成功！")
+	return
 }
 
 func createFile(bytes []byte) (file *os.File, err error) {
@@ -68,21 +82,33 @@ func createFile(bytes []byte) (file *os.File, err error) {
 	return
 }
 
-func AllFiles(c *gin.Context) {
+func AllFiles(c *gin.Context) error {
 	userID, err := models.CheckAuth(c)
 	if err != nil {
-		utils.ErrDetail(err)
 		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "用户登录超时")
+		return nil
 	}
 	directoryIDString := c.Query("directory_id")
 	directoryID, err := strconv.Atoi(directoryIDString)
-	if err != nil{
-		utils.ErrDetail(err)
+	if err != nil {
 		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "用户目录不存在！")
+		return err
 	}
+	type Result struct {
+		Files       []models.File      `json:"files"`
+		Directories []models.Directory `json:"directories"`
+	}
+	var result Result
 	files, err := models.FilesDirectoryUserID(userID, uint(directoryID))
-
-	utils.ClientJson(c, http.StatusOK, files, utils.CodeSuccess, "success")
+	directories, err := models.UserDirectories(userID, uint(directoryID))
+	if err != nil {
+		utils.JsonRepose(c, result)
+		return err
+	}
+	result.Files = files
+	result.Directories = directories
+	utils.JsonRepose(c, result)
+	return nil
 }
 
 func fileMd5(file multipart.File) (md5Str string, err error) {

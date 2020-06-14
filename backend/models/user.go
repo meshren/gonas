@@ -28,6 +28,10 @@ type User struct {
 	DirectoryID uint
 }
 
+func (u *User) directories(directoryID uint) (directories []Directory, err error) {
+	panic("implement me")
+}
+
 func (u *User) GenToken() (string, error) {
 	userToken, err := u.GenUserToken()
 	if err != nil {
@@ -61,8 +65,7 @@ func FilesDirectoryUserID(userID uint, directoryID uint) (files []File, err erro
 	}
 	var user User
 	user.ID = userID
-	user.DirectoryID = directoryID
-	db.Debug().Model(&user).Where("user_files.directory_id=?", directoryID).Related(&files, "Files")
+	db.Model(&user).Where("user_files.directory_id=?", directoryID).Related(&files, "Files")
 	return
 }
 
@@ -155,4 +158,13 @@ func CheckAuth(c *gin.Context) (userID uint, err error) {
 		return
 	}
 	return decryptToken.ID, nil
+}
+
+func UserDirectories(userID uint, directoryPID uint) (directories []Directory, err error) {
+	db, err := connection()
+	if err != nil {
+		return
+	}
+	db.Where("user_id=? AND parent_id=?", userID, directoryPID).Find(&directories)
+	return
 }

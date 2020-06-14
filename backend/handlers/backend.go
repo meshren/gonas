@@ -14,9 +14,9 @@ type userInfo struct {
 	Name string
 }
 
-func Login(c *gin.Context) {
+func Login(c *gin.Context) (err error) {
 	var user models.User
-	err := c.BindJSON(&user)
+	err = c.BindJSON(&user)
 	token, err := user.Login()
 	if err != nil {
 		utils.ClientJson(c, http.StatusBadRequest, "", utils.CodeProcessFailed, "校验失败，请重试！")
@@ -30,22 +30,25 @@ func Login(c *gin.Context) {
 	return
 }
 
-func Logout(c *gin.Context)  {
+func Logout(c *gin.Context) error {
 	utils.ClientJson(c, http.StatusOK, "", utils.CodeSuccess, "success")
+	return nil
 }
 
 
 
 
-func AllUsers(c *gin.Context) {
+func AllUsers(c *gin.Context) error {
 	c.JSON(http.StatusOK, gin.H{"user1": "user1"})
+	return nil
 }
 
-func UserInfo(c *gin.Context)  {
+func UserInfo(c *gin.Context) error {
 	c.JSON(http.StatusOK, gin.H{"code": 20000, "data": userInfo{
 		Roles:        [1]string{0:"admin"},
 		Introduction: "I am a super administrator",
 		Avatar:       "https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif",
 		Name:         "Super Admin",
 	}})
+	return nil
 }

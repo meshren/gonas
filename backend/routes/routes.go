@@ -1,10 +1,29 @@
 package routes
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"gonas/handlers"
+	"log"
+	"net/http"
 )
+
+type HandlerFunc func(c *gin.Context) (err error)
+
+// 统一处理error
+func ErrWrapper(handler HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		log.Println("check error")
+		err := handler(c)
+		log.Println(err)
+	}
+}
+
+func user(c *gin.Context) (err error) {
+	c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	return errors.New("Are you ok? ")
+}
 
 func Run() {
 	router := gin.Default()
@@ -18,3 +37,4 @@ func Run() {
 
 	router.Run(":" + port)
 }
+

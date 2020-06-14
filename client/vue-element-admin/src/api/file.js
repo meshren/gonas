@@ -32,3 +32,10 @@ export function uploadFile(data) {
   })
 }
 
+export function createFolder(data) {
+  return request({
+    url: '/directories',
+    method: 'post',
+    data
+  })
+}

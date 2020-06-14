@@ -11,15 +11,15 @@ func backend(router *gin.Engine) {
 	router.Static("/static", "./html/static")
 
 	backend := router.Group("/backend")
-	backend.POST("/login", handlers.Login)
+	backend.POST("/login", ErrWrapper(handlers.Login))
 	backend.Use(middlware.Auth())
 	{
-		backend.GET("/user/info", handlers.UserInfo)
-		backend.POST("/user/logout", handlers.Logout)
-		backend.GET("/files", handlers.AllFiles)
-		backend.POST("/files", handlers.UploadFiles) // 上传文件
-		backend.GET("/users", handlers.AllUsers)
-		backend.POST("/directories", handlers.CreateDirectories)
-		backend.GET("/directories", handlers.CreateDirectories)
+		backend.GET("/user/info", ErrWrapper(handlers.UserInfo))
+		backend.POST("/user/logout", ErrWrapper(handlers.Logout))
+		backend.GET("/files", ErrWrapper(handlers.AllFiles))
+		backend.POST("/files", ErrWrapper(handlers.UploadFiles)) // 上传文件
+		backend.GET("/users", ErrWrapper(handlers.AllUsers))
+		backend.POST("/directories", ErrWrapper(handlers.CreateDirectories))
+		backend.GET("/directories", ErrWrapper(handlers.AllDirectories))
 	}
 }

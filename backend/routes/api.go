@@ -7,5 +7,5 @@ import (
 
 func api(router *gin.Engine)  {
 	api := router.Group("/api")
-	api.GET("/login", handlers.Login)
+	api.GET("/login", ErrWrapper(handlers.Login))
 }
